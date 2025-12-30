@@ -38,7 +38,7 @@ const prompt = PromptTemplate.fromTemplate(
   "Answer using the context only.\nContext:\n{context}\n\nQuestion: {question}"
 );
 
-const question = process.argv[2] ?? "What is a retriever?";
+const question = process.argv[2] ?? "什么是检索,什么是RAG?";
 const retrieved = await retriever.invoke(question);
 const context = retrieved.map((d) => `- ${d.pageContent}`).join("\n");
 

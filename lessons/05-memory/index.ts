@@ -4,11 +4,11 @@ import {
   ChatPromptTemplate,
   MessagesPlaceholder
 } from "@langchain/core/prompts";
-import { RunnableWithMessageHistory } from "@langchain/core/runnables/history";
+import { RunnableWithMessageHistory } from "@langchain/core/runnables";
 import { InMemoryChatMessageHistory } from "@langchain/core/chat_history";
 
 const apiKey = process.env.ZHIPU_API_KEY;
-
+console.log("ZHIPU_API_KEY:", process.env.ZHIPU_API_KEY);
 const model = new ChatOpenAI({
   model: "glm-4.7",
   temperature: 0.2,

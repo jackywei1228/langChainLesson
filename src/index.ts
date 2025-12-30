@@ -25,8 +25,12 @@
   );
 
   const chain = prompt.pipe(model).pipe(parser);
-
+  
   const topic = process.argv[2] ?? "LangChain 1.x 的核心概念";
+  console.log("topic: " + topic);
+  console.log("prompt.template:", prompt.template);
+  console.log("prompt object:", JSON.stringify(prompt, null, 2));
+  console.log("format_instructions:\n", parser.getFormatInstructions());
   const result = await chain.invoke({
     topic,
     format_instructions: parser.getFormatInstructions()

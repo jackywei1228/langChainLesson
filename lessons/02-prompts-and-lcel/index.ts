@@ -18,6 +18,6 @@ const model = new ChatOpenAI({
 
 const chain = prompt.pipe(model).pipe(new StringOutputParser());
 
-const topic = process.argv[2] ?? "LCEL basics";
+const topic = process.argv[2] ?? "LCEL 基础知识";
 const result = await chain.invoke({ topic });
 console.log(result);

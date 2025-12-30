@@ -26,7 +26,7 @@ const prompt = PromptTemplate.fromTemplate(
 
 const chain = prompt.pipe(model).pipe(parser);
 
-const topic = process.argv[2] ?? "LangChain core ideas";
+const topic = process.argv[2] ?? "LangChain 核心理念";
 const result = await chain.invoke({
   topic,
   format_instructions: parser.getFormatInstructions()

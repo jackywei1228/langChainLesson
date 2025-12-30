@@ -13,5 +13,5 @@ const model = new ChatOpenAI({
   configuration: { baseURL: "https://open.bigmodel.cn/api/paas/v4/" }
 });
 
-const result = await model.invoke("Give me a one-sentence summary of LangChain.");
+const result = await model.invoke("请用一句话概括一下 LangChain");
 console.log(result.content);
