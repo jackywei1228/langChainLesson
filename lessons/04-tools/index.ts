@@ -1,5 +1,6 @@
 import "dotenv/config";
 import util from "node:util";
+import { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 
 process.on("uncaughtException", (err) => {
   console.error("uncaughtException:", util.inspect(err, { showHidden: true, depth: null }));
@@ -48,6 +49,39 @@ process.on("unhandledRejection", (reason) => {
       return;
     }
 
+    const getRoleFromMessage = (message: { getType?: () => string; _getType?: () => string; type?: string }) => {
+      const type = message.getType?.() ?? message._getType?.() ?? message.type ?? "unknown";
+      if (type === "human") return "user";
+      if (type === "ai") return "assistant";
+      if (type === "system") return "system";
+      if (type === "tool") return "tool";
+      return type;
+    };
+
+    const logHandler = BaseCallbackHandler.fromMethods({
+      handleChatModelStart(_llm, messages) {
+        console.log("LLM prompt messages:\n", JSON.stringify(messages, null, 2));
+        const payload = messages.map((batch) =>
+          batch.map((message) => ({
+            role: getRoleFromMessage(message),
+            content: message.content
+          }))
+        );
+        console.log("LLM payload (role/content):\n", JSON.stringify(payload, null, 2));
+      },
+      handleLLMEnd(output) {
+        const content = output.generations?.[0]?.[0]?.message?.content;
+        const message = output.generations?.[0]?.[0]?.message;
+        console.log("LLM raw output:\n", JSON.stringify(output, null, 2));
+        if (message) {
+          console.log("LLM response message:\n", JSON.stringify(message, null, 2));
+        }
+        if (content) {
+          console.log("LLM content:\n", content);
+        }
+      }
+    });
+
     const glossaryTool = tool(
       async ({ term }) => {
         const glossary: Record<string, string> = {
@@ -74,9 +108,12 @@ process.on("unhandledRejection", (reason) => {
 
     console.log("messages:", messages.map(m => m.content ?? m));
 
-    const aiMessage = await modelWithTools.invoke(messages);
+    const aiMessage = await modelWithTools.invoke(messages, {
+      callbacks: [logHandler]
+    });
     console.log("aiMessage (raw):", util.inspect(aiMessage, { showHidden: true, depth: 2 }));
-
+    console.log("------------------------------ tool_calls -----------------------");
+    console.log("tool_calls (raw):", JSON.stringify(aiMessage.additional_kwargs?.tool_calls, null, 2));
     if (!aiMessage.tool_calls?.length) {
       console.log("No tool call:", aiMessage.content);
       process.exit(0);
@@ -93,8 +130,10 @@ process.on("unhandledRejection", (reason) => {
       ...messages,
       aiMessage,
       ...toolMessages
-    ]);
-
+    ], {
+      callbacks: [logHandler]
+    });
+    console.log("------------------------------ messages -----------------------");
     console.log(final.content);
   } catch (err) {
     console.error("Caught error:\n", util.inspect(err, { showHidden: true, depth: null }));

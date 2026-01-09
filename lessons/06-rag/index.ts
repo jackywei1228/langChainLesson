@@ -21,8 +21,18 @@ class KeywordRetriever extends BaseRetriever {
   }
 
   async _getRelevantDocuments(query: string): Promise<Document[]> {
-    const q = query.toLowerCase();
-    return this.docs.filter((doc) => doc.pageContent.toLowerCase().includes(q));
+    const tokens = query
+      .toLowerCase()
+      .replace(/[^a-z0-9\u4e00-\u9fa5\s]/g, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+    if (tokens.length === 0) {
+      return [];
+    }
+    return this.docs.filter((doc) => {
+      const content = doc.pageContent.toLowerCase();
+      return tokens.some((token) => content.includes(token));
+    });
   }
 }
 

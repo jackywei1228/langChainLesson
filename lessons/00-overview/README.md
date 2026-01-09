@@ -11,6 +11,8 @@ This folder maps the learning path across core LangChain concepts. Each lesson i
 - `06-rag`: basic retriever + context injection (no external vector DB).
 - `07-agent-basics`: minimal agent with tools and final response.
 - `08-agent-routing`: use LLM tool selection middleware for routing.
+- `09-agent-multi-tools`: agent that calls three tools in one request.
+- `10-web-search`: use @langchain/community to search the web.
 
 ## Running
 Use the `npm run dev -- <path>` pattern to run a lesson:

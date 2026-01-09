@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { ChatOpenAI } from "@langchain/openai";
+import { BaseCallbackHandler } from "@langchain/core/callbacks/base";
 import { tool } from "@langchain/core/tools";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { StructuredOutputParser } from "@langchain/core/output_parsers";
@@ -17,6 +18,39 @@ const model = new ChatOpenAI({
   temperature: 0.2,
   apiKey,
   configuration: { baseURL: "https://open.bigmodel.cn/api/paas/v4/" }
+});
+
+const getRoleFromMessage = (message: { getType?: () => string; _getType?: () => string; type?: string }) => {
+  const type = message.getType?.() ?? message._getType?.() ?? message.type ?? "unknown";
+  if (type === "human") return "user";
+  if (type === "ai") return "assistant";
+  if (type === "system") return "system";
+  if (type === "tool") return "tool";
+  return type;
+};
+
+const logHandler = BaseCallbackHandler.fromMethods({
+  handleChatModelStart(_llm, messages) {
+    console.log("LLM prompt messages:\n", JSON.stringify(messages, null, 2));
+    const payload = messages.map((batch) =>
+      batch.map((message) => ({
+        role: getRoleFromMessage(message),
+        content: message.content
+      }))
+    );
+    console.log("LLM payload (role/content):\n", JSON.stringify(payload, null, 2));
+  },
+  handleLLMEnd(output) {
+    const content = output.generations?.[0]?.[0]?.message?.content;
+    const message = output.generations?.[0]?.[0]?.message;
+    console.log("LLM raw output:\n", JSON.stringify(output, null, 2));
+    if (message) {
+      console.log("LLM response message:\n", JSON.stringify(message, null, 2));
+    }
+    if (content) {
+      console.log("LLM content:\n", content);
+    }
+  }
 });
 
 const glossaryTool = tool(
@@ -37,6 +71,9 @@ const glossaryTool = tool(
 
 const multiplyTool = tool(
   async ({ a, b }) => {
+    const stack = new Error().stack ?? "no stack";
+    console.log("multiply tool called");
+    console.log(stack);
     return `${a} * ${b} = ${a * b}`;
   },
   {
@@ -84,6 +121,9 @@ const selectionSchema = z.object({
   tools: z.array(toolNameEnum).min(1).max(2)
 });
 const selectionParser = StructuredOutputParser.fromZodSchema(selectionSchema);
+console.log("----------------------------------------------------------------");
+console.log("selectionParser getFormatInstructions:\n", selectionParser.getFormatInstructions());
+
 
 const selectionPrompt = PromptTemplate.fromTemplate(
   [
@@ -98,14 +138,24 @@ const selectionPrompt = PromptTemplate.fromTemplate(
   ].join("\n")
 );
 
+console.log("----------------------------------------------------------------");
 const question = "Define LCEL and then compute 9 * 8.";
-const selectionResponse = await model.invoke(
-  await selectionPrompt.format({
-    tool_list: tools.map((item) => `- ${item.name}: ${item.description}`).join("\n"),
-    format_instructions: selectionParser.getFormatInstructions(),
-    question
-  })
-);
+const formattedPrompt = await selectionPrompt.format({
+  tool_list: tools.map((item) => `- ${item.name}: ${item.description}`).join("\n"),
+  format_instructions: selectionParser.getFormatInstructions(),
+  question
+});
+
+console.log("selectionPrompt formatted:\n", formattedPrompt);
+
+const selectionResponse = await model.invoke(formattedPrompt, {
+  callbacks: [logHandler]
+});
+
+console.log("----------------------------------------------------------------");
+console.log("Selection response:\n", JSON.stringify(selectionResponse, null, 2));
+
+
 const selection = await selectionParser.parse(
   typeof selectionResponse.content === "string" ? selectionResponse.content : ""
 );
@@ -126,6 +176,30 @@ const result = await agent.invoke({
       content: question
     }
   ]
+}, {
+  callbacks: [logHandler]
+});
+
+const getMessageType = (message: { getType?: () => string; _getType?: () => string; type?: string }) => {
+  if (message.getType) {
+    return message.getType();
+  }
+  if (message._getType) {
+    return message._getType();
+  }
+  if (message.type) {
+    return message.type;
+  }
+  return "unknown";
+};
+
+console.log("---- Agent message trace ----");
+result.messages.forEach((message, index) => {
+  const content = typeof message.content === "string" ? message.content : JSON.stringify(message.content);
+  console.log(
+    `[${index}] ${getMessageType(message)} ::`,
+    content
+  );
 });
 
 const finalMessage = result.messages[result.messages.length - 1];
