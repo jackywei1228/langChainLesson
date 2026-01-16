@@ -35,7 +35,7 @@ const logHandler = BaseCallbackHandler.fromMethods({
     console.log("LLM payload (role/content):\n", JSON.stringify(payload, null, 2));
   },
   handleLLMEnd(output) {
-    const content = output.generations?.[0]?.[0]?.message?.content;
+    const content = output.generations?.[0]?.[0]?.message?.kwargs?.content;
     const message = output.generations?.[0]?.[0]?.message;
     console.log("LLM raw output:\n", JSON.stringify(output, null, 2));
     if (message) {
@@ -44,6 +44,15 @@ const logHandler = BaseCallbackHandler.fromMethods({
     if (content) {
       console.log("LLM content:\n", content);
     }
+  },
+  // 3. 看到每个工具的执行结果
+  handleToolEnd(output) {
+    console.log("工具返回:", output);
+  },
+
+  // 4. 流式输出（实时看到生成过程）
+  handleLLMNewToken(token) {
+    process.stdout.write(token); // 逐字打印
   }
 });
 
